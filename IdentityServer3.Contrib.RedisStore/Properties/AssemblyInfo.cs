@@ -6,9 +6,9 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("IdentityServer3.Contrib.RedisStore")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("Redis Store for operational data of Identity Server")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
+[assembly: AssemblyCompany("Ali Bazzi")]
 [assembly: AssemblyProduct("IdentityServer3.Contrib.RedisStore")]
 [assembly: AssemblyCopyright("Copyright ©  2017")]
 [assembly: AssemblyTrademark("")]
