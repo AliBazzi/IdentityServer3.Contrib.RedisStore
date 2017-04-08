@@ -57,12 +57,12 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
             return JsonConvert.DeserializeObject<T>(json, GetJsonSerializerSettings());
         }
 
-        protected Models.Token JsonToToken(string json)
+        protected RedisStuct RedisToToken(string json)
         {
-            return JsonConvert.DeserializeObject<Models.Token>(json);
+            return JsonConvert.DeserializeObject<RedisStuct>(json);
         }
 
-        protected string TokenToJson(Models.Token token)
+        protected string TokenToRedis(RedisStuct token)
         {
             return JsonConvert.SerializeObject(token);
         }
@@ -71,7 +71,7 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
         public async Task<T> GetAsync(string key)
         {
             var token = await this.database.StringGetAsync(GetKey(key));
-            return token.HasValue ? ConvertFromJson(JsonToToken(token).Content) : default(T);
+            return token.HasValue ? ConvertFromJson(RedisToToken(token).Content) : default(T);
         }
 
         public async Task RemoveAsync(string key)
@@ -80,15 +80,15 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
             if (!token.HasValue)
                 return;
             await this.database.KeyDeleteAsync(GetKey(key));
-            var _ = JsonToToken(token);
-            await this.database.HashDeleteAsync(GetHashSetKey(_.SId), key);
-            await this.database.SetRemoveAsync(GetSetKey(_.SId, _.CId), key);
+            var _ = ConvertFromJson(RedisToToken(token).Content);
+            await this.database.HashDeleteAsync(GetHashSetKey(_.SubjectId), key);
+            await this.database.SetRemoveAsync(GetSetKey(_.SubjectId, _.ClientId), key);
         }
 
         public async Task<IEnumerable<ITokenMetadata>> GetAllAsync(string subject)
         {
             var tokens = await this.database.HashGetAllAsync(GetHashSetKey(subject));
-            return tokens.Select(_ => JsonToToken(_.Value)).Where(_ => _.Exp < DateTimeOffset.UtcNow).Select(_ => ConvertFromJson(_.Content)).Cast<ITokenMetadata>();
+            return tokens.Select(_ => RedisToToken(_.Value)).Where(_ => _.Exp < DateTimeOffset.UtcNow).Select(_ => ConvertFromJson(_.Content)).Cast<ITokenMetadata>();
         }
 
         public async Task RevokeAsync(string subject, string client)
@@ -106,24 +106,21 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
         protected async Task AddToHashSet(string key, ITokenMetadata token, string json, TimeSpan expiresIn)
         {
             var hashKey = GetHashSetKey(token);
-            var hashSet = (await this.database.HashGetAllAsync(hashKey)).Select(_ => JsonToToken(_.Value));
+            var hashSet = (await this.database.HashGetAllAsync(hashKey)).Select(_ => new { Key = _.Name, Token = RedisToToken(_.Value) });
             await this.database.HashSetAsync(hashKey, key, json);
             if (hashSet.Any())
             {
-                var maxExpiry = hashSet.Max(_ => _.Exp) - DateTimeOffset.UtcNow;
+                var maxExpiry = hashSet.Max(_ => _.Token.Exp - DateTimeOffset.UtcNow);
                 if (maxExpiry < expiresIn)
                     await this.database.KeyExpireAsync(hashKey, expiresIn);
             }
             else
                 await this.database.KeyExpireAsync(hashKey, expiresIn);
-            await Cleanup(hashKey, hashSet);
-        }
 
-        private async Task Cleanup(string key, IEnumerable<Models.Token> hashSet)
-        {
-            var cleanupIds = hashSet.Where(_ => _.Exp - DateTimeOffset.UtcNow < new TimeSpan());
+            //clean up the expired hash entries
+            var cleanupIds = hashSet.Where(_ => _.Token.Exp - DateTimeOffset.UtcNow < new TimeSpan());
             if (cleanupIds.Any())
-                await this.database.HashDeleteAsync(key, cleanupIds.Select(_ => (RedisValue)_.Key).ToArray());
+                await this.database.HashDeleteAsync(key, cleanupIds.Select(_ => _.Key).ToArray());
         }
 
         protected async Task AddToSet(string key, ITokenMetadata token, TimeSpan expiresIn)

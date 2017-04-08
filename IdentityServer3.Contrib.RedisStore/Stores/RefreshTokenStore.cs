@@ -15,15 +15,12 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
 
         public override async Task StoreAsync(string key, RefreshToken refreshToken)
         {
-            var token = new Models.Token
+            var token = new RedisStuct
             {
-                Key = key,
-                CId = refreshToken.ClientId,
-                SId = refreshToken.SubjectId,
                 Content = ConvertToJson(refreshToken),
                 Exp = refreshToken.CreationTime.AddSeconds(refreshToken.LifeTime)
             };
-            var json = TokenToJson(token);
+            var json = TokenToRedis(token);
             var expiresIn = refreshToken.CreationTime.UtcDateTime.AddSeconds(refreshToken.LifeTime) - DateTimeOffset.UtcNow;
             await this.database.StringSetAsync(GetKey(key), json, expiresIn);
             await AddToHashSet(key, refreshToken, json, expiresIn);
