@@ -49,7 +49,7 @@ public class RedisStoreMultiplexer
 
 ## the solution approach
 
-the solution was approached based on how the [SQL Store](https://github.com/IdentityServer/IdentityServer3.EntityFramework) storing the operational data, but the concept of Redis as a NoSQL db is totally different than relational db concepts, all the operational data store implements the following [ITransientDataRepository](https://github.com/IdentityServer/IdentityServer3/blob/master/source%2FCore%2FServices%2FITransientDataRepository.cs) interface:
+the solution was approached based on how the [SQL Store](https://github.com/IdentityServer/IdentityServer3.EntityFramework) storing the operational data, but the concept of Redis as a NoSQL db is totally different than relational db concepts, all the operational data stores implement the following [ITransientDataRepository](https://github.com/IdentityServer/IdentityServer3/blob/master/source%2FCore%2FServices%2FITransientDataRepository.cs) interface:
 
 ```csharp
     public interface ITransientDataRepository<T>
@@ -79,15 +79,15 @@ and the [ITokenMetadata](https://github.com/IdentityServer/IdentityServer3/blob/
     }
 ```
 
-with the ITransientDataRepository contract, we notice the GetAllAsync(subject) and RevokeAsync(subject,client) defines a contract to read based on subject id and revoke all the tokens in the store based in subject and client ids.
+with the ITransientDataRepository contract, we notice that the GetAllAsync(subject) and RevokeAsync(subject,client) defines a contract to read based on subject id and revoke all the tokens in the store based on subject and client ids.
 
-and this brings trouble to Redis store since redis as a dictionary is not designed for relational queries, so the trick is to store multiple entries for the same token, and can be reached using key, subject and subject with client ids.
+this brings trouble to Redis store since redis as a reliable dictionary is not designed for relational queries, so the trick is to store multiple entries for the same token, and can be reached using key, subject and client ids.
 
 so the StoreAsync operation stores the following entries in Redis:
 
-1. Key(TokenType:Key) -> RedisStruct: stored as key string value pairs, used to retrieve the Token based on the key, if the token is exists or not expired.
+1. Key(TokenType:Key) -> RedisStruct: stored as key string value pairs, used to retrieve the Token based on the key, if the token exists or not expired.
 
-1. Key(TokenType:SubjectId) -> HashField(Key, RedisStruct)* : stored in HashSet data structure, used on the GetAllAsync, to retrieve the all the tokens related to a given subject id.
+1. Key(TokenType:SubjectId) -> HashField(Key, RedisStruct)* : stored in HashSet data structure, used on the GetAllAsync, to retrieve all the tokens related to a given subject id.
 
 1. Key(TokenType:SubjectId:ClientId) -> Key : stored in a redis set, used to retrieve all the keys that are related to a subject and client ids, to revoke them while calling RevokeAsync.
 
