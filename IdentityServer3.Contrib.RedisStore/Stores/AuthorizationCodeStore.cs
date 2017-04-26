@@ -22,9 +22,10 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
             };
             var json = TokenToRedis(token);
             var expiresIn = new TimeSpan(0, 0, code.Client.AuthorizationCodeLifetime);
-            await this.database.StringSetAsync(GetKey(key), json, expiresIn);
-            await AddToHashSet(key, code, json, expiresIn);
-            await AddToSet(key, code, expiresIn);
+            await Task.WhenAll(
+                this.database.StringSetAsync(GetKey(key), json, expiresIn),
+                AddToHashSet(key, code, json, expiresIn),
+                AddToSet(key, code, expiresIn));
         }
     }
 }

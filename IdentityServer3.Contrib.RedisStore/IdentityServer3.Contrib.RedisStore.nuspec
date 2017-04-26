@@ -8,7 +8,7 @@
     <owners>Ali Bazzi</owners>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>$description$</description>
-    <releaseNotes>RC</releaseNotes>
+    <releaseNotes>RTM</releaseNotes>
     <copyright>Copyright 2017</copyright>
     <tags>IdentityServer IdentityServer3 Redis Store</tags>
   </metadata>

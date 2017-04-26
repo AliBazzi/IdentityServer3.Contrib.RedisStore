@@ -79,10 +79,12 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
             var token = await this.database.StringGetAsync(GetKey(key));
             if (!token.HasValue)
                 return;
-            await this.database.KeyDeleteAsync(GetKey(key));
             var _ = ConvertFromJson(RedisToToken(token).Content);
-            await this.database.HashDeleteAsync(GetHashSetKey(_.SubjectId), key);
-            await this.database.SetRemoveAsync(GetSetKey(_.SubjectId, _.ClientId), key);
+            await Task.WhenAll(
+                this.database.KeyDeleteAsync(GetKey(key)),
+                this.database.HashDeleteAsync(GetHashSetKey(_.SubjectId), key),
+                this.database.SetRemoveAsync(GetSetKey(_.SubjectId, _.ClientId), key)
+            );
         }
 
         public async Task<IEnumerable<ITokenMetadata>> GetAllAsync(string subject)
@@ -97,8 +99,10 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
             var set = await this.database.SetMembersAsync(setKey);
             if (set.Count() == 0)
                 return;
-            await this.database.KeyDeleteAsync(set.Select(_ => (RedisKey)_.ToString()).Concat(new RedisKey[] { setKey }).ToArray());
-            await this.database.HashDeleteAsync(GetHashSetKey(subject), set);
+            await Task.WhenAll(
+                this.database.KeyDeleteAsync(set.Select(_ => (RedisKey)_.ToString())
+                .Concat(new RedisKey[] { setKey }).ToArray()),
+            this.database.HashDeleteAsync(GetHashSetKey(subject), set));
         }
 
         public abstract Task StoreAsync(string key, T value);
@@ -126,8 +130,9 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
         protected async Task AddToSet(string key, ITokenMetadata token, TimeSpan expiresIn)
         {
             var setKey = GetSetKey(token);
-            await this.database.SetAddAsync(setKey, key);
-            await this.database.KeyExpireAsync(setKey, expiresIn);
+            await Task.WhenAll(
+                this.database.SetAddAsync(setKey, key),
+                this.database.KeyExpireAsync(setKey, expiresIn));
         }
     }
 }
