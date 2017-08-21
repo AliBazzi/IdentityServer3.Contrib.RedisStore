@@ -116,7 +116,7 @@ since Redis has a [key Expiration](https://redis.io/commands/expire) feature bas
 
 1. for Key(TokenType:SubjectId:ClientId) set the expiration also set as the lifetime of the token passed by the identity server, since the [Client](https://identityserver.github.io/Documentation/docsv2/configuration/clients.html) has unified lifetime for the token defined in the configuration.
 
-1. for Key(TokenType:SubjectId) HashSet, the expiration is a little bit complicated since the subject id is involved, and it may happen that the subject has valid tokens from multiple clients, each client define it's own lifetime of the token in-place. so the expiration set for the HashSet is based on the longest lifetime configuration of the clients the user already using.
+1. for Key(TokenType:SubjectId) Set, there is no expiration since the subject id is involved, so on GetAllAsync and RevokeAsync the Store is clearing the expired keys.
 
 ## Feedback
 
