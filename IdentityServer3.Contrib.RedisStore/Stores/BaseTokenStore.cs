@@ -28,11 +28,9 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
 
         protected string GetKey(string key) => $"{(short)this.tokenType}:{key}";
 
-        private string GetHashSetKey(ITokenMetadata token) => $"{((short)this.tokenType).ToString()}:{token.SubjectId}";
-
-        protected string GetHashSetKey(string subjectId) => $"{((short)this.tokenType).ToString()}:{subjectId}";
-
         private string GetSetKey(ITokenMetadata token) => $"{((short)this.tokenType).ToString()}:{token.SubjectId}:{token.ClientId}";
+
+        private string GetSetKey(string subjectId) => $"{((short)this.tokenType).ToString()}:{subjectId}";
 
         private string GetSetKey(string subjectId, string clientId) => $"{((short)this.tokenType).ToString()}:{subjectId}:{clientId}";
 
@@ -82,57 +80,41 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
             var _ = ConvertFromJson(RedisToToken(token).Content);
             await Task.WhenAll(
                 this.database.KeyDeleteAsync(GetKey(key)),
-                this.database.HashDeleteAsync(GetHashSetKey(_.SubjectId), key),
+                this.database.SetRemoveAsync(GetSetKey(_.SubjectId), key),
                 this.database.SetRemoveAsync(GetSetKey(_.SubjectId, _.ClientId), key)
             );
         }
 
         public async Task<IEnumerable<ITokenMetadata>> GetAllAsync(string subject)
         {
-            var tokens = await this.database.HashGetAllAsync(GetHashSetKey(subject));
-            return tokens.Select(_ => RedisToToken(_.Value)).Where(_ => _.Exp < DateTimeOffset.UtcNow).Select(_ => ConvertFromJson(_.Content)).Cast<ITokenMetadata>();
+            var setKey = GetSetKey(subject);
+            var tokensKeys = await this.database.SetMembersAsync(setKey);
+            var tokens = await this.database.StringGetAsync(tokensKeys.Select(_ => (RedisKey)_.ToString()).ToArray());
+            var keysToDelete = tokensKeys.Zip(tokens, (key, value) => new KeyValuePair<RedisValue, RedisValue>(key, value)).Where(_ => !_.Value.HasValue).Select(_ => _.Key).ToArray();
+            await this.database.SetRemoveAsync(setKey, keysToDelete);
+            return tokens.Where(_ => _.HasValue).Select(_ => ConvertFromJson(RedisToToken(_).Content)).Cast<ITokenMetadata>();
         }
 
         public async Task RevokeAsync(string subject, string client)
         {
             var setKey = GetSetKey(subject, client);
-            var set = await this.database.SetMembersAsync(setKey);
-            if (set.Count() == 0)
+            var keys = await this.database.SetMembersAsync(setKey);
+            if (keys.Count() == 0)
                 return;
             await Task.WhenAll(
-                this.database.KeyDeleteAsync(set.Select(_ => (RedisKey)_.ToString())
-                .Concat(new RedisKey[] { setKey }).ToArray()),
-            this.database.HashDeleteAsync(GetHashSetKey(subject), set));
+                this.database.KeyDeleteAsync(keys.Select(_ => (RedisKey)_.ToString()).Concat(new RedisKey[] { setKey }).ToArray()),
+                this.database.SetRemoveAsync(GetSetKey(subject), keys.ToArray()));
         }
 
         public abstract Task StoreAsync(string key, T value);
-
-        protected async Task AddToHashSet(string key, ITokenMetadata token, string json, TimeSpan expiresIn)
-        {
-            var hashKey = GetHashSetKey(token);
-            var hashSet = (await this.database.HashGetAllAsync(hashKey)).Select(_ => new { Key = _.Name, Token = RedisToToken(_.Value) });
-            await this.database.HashSetAsync(hashKey, key, json);
-            if (hashSet.Any())
-            {
-                var maxExpiry = hashSet.Max(_ => _.Token.Exp - DateTimeOffset.UtcNow);
-                if (maxExpiry < expiresIn)
-                    await this.database.KeyExpireAsync(hashKey, expiresIn);
-            }
-            else
-                await this.database.KeyExpireAsync(hashKey, expiresIn);
-
-            //clean up the expired hash entries
-            var cleanupIds = hashSet.Where(_ => _.Token.Exp - DateTimeOffset.UtcNow < new TimeSpan());
-            if (cleanupIds.Any())
-                await this.database.HashDeleteAsync(key, cleanupIds.Select(_ => _.Key).ToArray());
-        }
 
         protected async Task AddToSet(string key, ITokenMetadata token, TimeSpan expiresIn)
         {
             var setKey = GetSetKey(token);
             await Task.WhenAll(
                 this.database.SetAddAsync(setKey, key),
-                this.database.KeyExpireAsync(setKey, expiresIn));
+                this.database.SetAddAsync(GetSetKey(token.SubjectId), key));
+            await this.database.KeyExpireAsync(setKey, expiresIn);
         }
     }
 }
