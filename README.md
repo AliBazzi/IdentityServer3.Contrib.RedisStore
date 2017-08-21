@@ -87,7 +87,7 @@ so the StoreAsync operation stores the following entries in Redis:
 
 1. Key(TokenType:Key) -> RedisStruct: stored as key string value pairs, used to retrieve the Token based on the key, if the token exists or not expired.
 
-1. Key(TokenType:SubjectId) -> HashField(Key, RedisStruct)* : stored in HashSet data structure, used on the GetAllAsync, to retrieve all the tokens related to a given subject id.
+1. Key(TokenType:SubjectId) -> Key* : stored in a redis Set, used on the GetAllAsync, to retrieve all the tokens related to a given subject id.
 
 1. Key(TokenType:SubjectId:ClientId) -> Key* : stored in a redis set, used to retrieve all the keys that are related to a subject and client ids, to revoke them while calling RevokeAsync.
 
