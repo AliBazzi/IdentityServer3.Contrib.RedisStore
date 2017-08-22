@@ -87,7 +87,7 @@ so the StoreAsync operation stores the following entries in Redis:
 
 1. Key(TokenType:Key) -> RedisStruct: stored as key string value pairs, used to retrieve the Token based on the key, if the token exists or not expired.
 
-1. Key(TokenType:SubjectId) -> HashField(Key, RedisStruct)* : stored in HashSet data structure, used on the GetAllAsync, to retrieve all the tokens related to a given subject id.
+1. Key(TokenType:SubjectId) -> Key* : stored in a redis Set, used on the GetAllAsync, to retrieve all the tokens related to a given subject id.
 
 1. Key(TokenType:SubjectId:ClientId) -> Key* : stored in a redis set, used to retrieve all the keys that are related to a subject and client ids, to revoke them while calling RevokeAsync.
 
@@ -116,7 +116,7 @@ since Redis has a [key Expiration](https://redis.io/commands/expire) feature bas
 
 1. for Key(TokenType:SubjectId:ClientId) set the expiration also set as the lifetime of the token passed by the identity server, since the [Client](https://identityserver.github.io/Documentation/docsv2/configuration/clients.html) has unified lifetime for the token defined in the configuration.
 
-1. for Key(TokenType:SubjectId) HashSet, the expiration is a little bit complicated since the subject id is involved, and it may happen that the subject has valid tokens from multiple clients, each client define it's own lifetime of the token in-place. so the expiration set for the HashSet is based on the longest lifetime configuration of the clients the user already using.
+1. for Key(TokenType:SubjectId) Set, there is no expiration since the subject id is involved, so on GetAllAsync and RevokeAsync the Store is clearing the expired keys.
 
 ## Feedback
 
