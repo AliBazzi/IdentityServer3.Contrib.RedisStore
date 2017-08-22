@@ -112,9 +112,8 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
         {
             var setKey = GetSetKey(token);
             await Task.WhenAll(
-                this.database.SetAddAsync(setKey, key),
+                this.database.SetAddAsync(setKey, key).ContinueWith(_ => this.database.KeyExpireAsync(setKey, expiresIn)),
                 this.database.SetAddAsync(GetSetKey(token.SubjectId), key));
-            await this.database.KeyExpireAsync(setKey, expiresIn);
         }
     }
 }

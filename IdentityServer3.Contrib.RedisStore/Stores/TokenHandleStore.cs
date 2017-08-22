@@ -24,7 +24,7 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
             var expiresIn = new TimeSpan(0, 0, tokenHandle.Lifetime);
             await Task.WhenAll(
                 this.database.StringSetAsync(GetKey(key), json, expiresIn),
-                AddToSet(key, tokenHandle, expiresIn));
+                base.AddToSet(key, tokenHandle, expiresIn));
         }
     }
 }
