@@ -49,6 +49,7 @@
     <Reference Include="System.IO.Compression" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Extensions\IdentityServerRedisStoreExtensions.cs" />
     <Compile Include="Models\RedisStuct.cs" />
     <Compile Include="Models\TokenType.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
