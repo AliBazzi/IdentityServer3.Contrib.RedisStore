@@ -9,7 +9,7 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
 {
     public class RefreshTokenStore : BaseTokenStore<RefreshToken>, IRefreshTokenStore
     {
-        public RefreshTokenStore(IDatabaseAsync database, IScopeStore scopeStore, IClientStore clientStore)
+        public RefreshTokenStore(IDatabase database, IScopeStore scopeStore, IClientStore clientStore)
             : base(database, TokenType.RefreshToken, scopeStore, clientStore)
         { }
 
@@ -22,9 +22,7 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
             };
             var json = TokenToRedis(token);
             var expiresIn = refreshToken.CreationTime.UtcDateTime.AddSeconds(refreshToken.LifeTime) - DateTimeOffset.UtcNow;
-            await Task.WhenAll(
-                this.database.StringSetAsync(GetKey(key), json, expiresIn),
-                base.AddToSet(key, refreshToken, expiresIn));
+            await base.StoreAsync(key, json, refreshToken, expiresIn);
         }
     }
 }

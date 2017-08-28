@@ -9,7 +9,7 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
 {
     public class AuthorizationCodeStore : BaseTokenStore<AuthorizationCode>, IAuthorizationCodeStore
     {
-        public AuthorizationCodeStore(IDatabaseAsync database, IScopeStore scopeStore, IClientStore clientStore)
+        public AuthorizationCodeStore(IDatabase database, IScopeStore scopeStore, IClientStore clientStore)
             : base(database, TokenType.AuthorizationCode, scopeStore, clientStore)
         { }
 
@@ -22,9 +22,7 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
             };
             var json = TokenToRedis(token);
             var expiresIn = new TimeSpan(0, 0, code.Client.AuthorizationCodeLifetime);
-            await Task.WhenAll(
-                this.database.StringSetAsync(GetKey(key), json, expiresIn),
-                base.AddToSet(key, code, expiresIn));
+            await base.StoreAsync(key, json, code, expiresIn);
         }
     }
 }

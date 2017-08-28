@@ -17,7 +17,7 @@ namespace IdentityServer3.Core.Configuration
         {
             if (options == null) throw new ArgumentNullException(nameof(options));
             factory.Register(new Registration<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(options)));
-            factory.Register(new Registration<IDatabaseAsync>(_ => _.Resolve<IConnectionMultiplexer>().GetDatabase()));
+            factory.Register(new Registration<IDatabase>(_ => _.Resolve<IConnectionMultiplexer>().GetDatabase()));
             factory.AuthorizationCodeStore = new Registration<IAuthorizationCodeStore, AuthorizationCodeStore>();
             factory.TokenHandleStore = new Registration<ITokenHandleStore, TokenHandleStore>();
             factory.RefreshTokenStore = new Registration<IRefreshTokenStore, RefreshTokenStore>();
@@ -34,7 +34,7 @@ namespace IdentityServer3.Core.Configuration
         {
             if (string.IsNullOrEmpty(redisStoreConnection)) throw new ArgumentException(nameof(redisStoreConnection));
             factory.Register(new Registration<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisStoreConnection)));
-            factory.Register(new Registration<IDatabaseAsync>(_ => _.Resolve<IConnectionMultiplexer>().GetDatabase(db)));
+            factory.Register(new Registration<IDatabase>(_ => _.Resolve<IConnectionMultiplexer>().GetDatabase(db)));
             factory.AuthorizationCodeStore = new Registration<IAuthorizationCodeStore, AuthorizationCodeStore>();
             factory.TokenHandleStore = new Registration<ITokenHandleStore, TokenHandleStore>();
             factory.RefreshTokenStore = new Registration<IRefreshTokenStore, RefreshTokenStore>();

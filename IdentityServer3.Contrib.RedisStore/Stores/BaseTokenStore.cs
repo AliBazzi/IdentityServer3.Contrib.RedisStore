@@ -13,12 +13,12 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
 {
     public abstract class BaseTokenStore<T> where T : ITokenMetadata
     {
-        protected readonly TokenType tokenType;
-        protected readonly IScopeStore scopeStore;
-        protected readonly IClientStore clientStore;
-        protected readonly IDatabaseAsync database;
+        private readonly TokenType tokenType;
+        private readonly IScopeStore scopeStore;
+        private readonly IClientStore clientStore;
+        private readonly IDatabase database;
 
-        public BaseTokenStore(IDatabaseAsync database, TokenType tokenType, IScopeStore scopeStore, IClientStore clientStore)
+        public BaseTokenStore(IDatabase database, TokenType tokenType, IScopeStore scopeStore, IClientStore clientStore)
         {
             this.scopeStore = scopeStore ?? throw new ArgumentNullException(nameof(scopeStore));
             this.clientStore = clientStore ?? throw new ArgumentNullException(nameof(clientStore));
@@ -78,11 +78,11 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
             if (!token.HasValue)
                 return;
             var _ = ConvertFromJson(RedisToToken(token).Content);
-            await Task.WhenAll(
-                this.database.KeyDeleteAsync(GetKey(key)),
-                this.database.SetRemoveAsync(GetSetKey(_.SubjectId), key),
-                this.database.SetRemoveAsync(GetSetKey(_.SubjectId, _.ClientId), key)
-            );
+            var transaction = this.database.CreateTransaction();
+            transaction.KeyDeleteAsync(GetKey(key));
+            transaction.SetRemoveAsync(GetSetKey(_.SubjectId), key);
+            transaction.SetRemoveAsync(GetSetKey(_.SubjectId, _.ClientId), key);
+            await transaction.ExecuteAsync();
         }
 
         public async Task<IEnumerable<ITokenMetadata>> GetAllAsync(string subject)
@@ -101,19 +101,23 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
             var keys = await this.database.SetMembersAsync(setKey);
             if (keys.Count() == 0)
                 return;
-            await Task.WhenAll(
-                this.database.KeyDeleteAsync(keys.Select(_ => (RedisKey)_.ToString()).Concat(new RedisKey[] { setKey }).ToArray()),
-                this.database.SetRemoveAsync(GetSetKey(subject), keys.ToArray()));
+            var transaction = this.database.CreateTransaction();
+            transaction.KeyDeleteAsync(keys.Select(_ => (RedisKey)_.ToString()).Concat(new RedisKey[] { setKey }).ToArray());
+            transaction.SetRemoveAsync(GetSetKey(subject), keys.ToArray());
+            await transaction.ExecuteAsync();
         }
 
         public abstract Task StoreAsync(string key, T value);
 
-        protected async Task AddToSet(string key, ITokenMetadata token, TimeSpan expiresIn)
+        protected async Task StoreAsync(string key, string json, ITokenMetadata token, TimeSpan expiresIn)
         {
             var setKey = GetSetKey(token);
-            await Task.WhenAll(
-                this.database.SetAddAsync(setKey, key).ContinueWith(_ => this.database.KeyExpireAsync(setKey, expiresIn)),
-                this.database.SetAddAsync(GetSetKey(token.SubjectId), key));
+            var transaction = this.database.CreateTransaction();
+            transaction.StringSetAsync(GetKey(key), json, expiresIn);
+            transaction.SetAddAsync(setKey, key);
+            transaction.SetAddAsync(GetSetKey(token.SubjectId), key);
+            transaction.KeyExpireAsync(setKey, expiresIn);
+            await transaction.ExecuteAsync();
         }
     }
 }
