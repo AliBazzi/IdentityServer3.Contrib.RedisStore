@@ -14,37 +14,21 @@ like the following:
 ```csharp
 var factory = new IdentityServerServiceFactory();
 
-factory.Register(new Registration<RedisStoreMultiplexer>(new RedisStoreMultiplexer("Connection string"));
+...
 
-factory.Register(new Registration<IDatabaseAsync>(resolver => resolver.Resolve<RedisStoreMultiplexer>().GetDatabase()));
+factory.ConfigureOperationalRedisStoreServices(new ConfigurationOptions { /* ... */  });
 
-factory.AuthorizationCodeStore = new Registration<IAuthorizationCodeStore, AuthorizationCodeStore>();
-
-factory.TokenHandleStore = new Registration<ITokenHandleStore, TokenHandleStore>();
-
-factory.RefreshTokenStore = new Registration<IRefreshTokenStore, RefreshTokenStore>();
 ```
 
-you can define your own strategy for connecting to Redis DB, in this example, you can create your own strategy to resolve the IDatabase using RedisStoreMultiplexer:
+Or:
 
 ```csharp
-public class RedisStoreMultiplexer
-    {
-        private readonly IConnectionMultiplexer multiplexer;
+var factory = new IdentityServerServiceFactory();
 
-        private readonly int DB;
+...
 
-        public RedisStoreMultiplexer(string connectionString, int DB = 0)
-        {
-            this.DB = DB;
-            this.multiplexer = ConnectionMultiplexer.Connect(connectionString);
-        }
+factory.ConfigureOperationalRedisStoreServices("--- redis store connection string goes here ---");
 
-        public IDatabase GetDatabase()
-        {
-            return this.multiplexer.GetDatabase(this.DB);
-        }
-    }
 ```
 
 ## the solution approach
