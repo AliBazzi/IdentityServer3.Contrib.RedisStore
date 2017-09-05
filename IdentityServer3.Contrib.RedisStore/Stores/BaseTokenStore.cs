@@ -91,7 +91,8 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
             var tokensKeys = await this.database.SetMembersAsync(setKey);
             var tokens = await this.database.StringGetAsync(tokensKeys.Select(_ => (RedisKey)_.ToString()).ToArray());
             var keysToDelete = tokensKeys.Zip(tokens, (key, value) => new KeyValuePair<RedisValue, RedisValue>(key, value)).Where(_ => !_.Value.HasValue).Select(_ => _.Key).ToArray();
-            await this.database.SetRemoveAsync(setKey, keysToDelete);
+            if (keysToDelete.Count() != 0)
+                await this.database.SetRemoveAsync(setKey, keysToDelete);
             return tokens.Where(_ => _.HasValue).Select(_ => ConvertFromJson(RedisToToken(_).Content)).Cast<ITokenMetadata>();
         }
 
