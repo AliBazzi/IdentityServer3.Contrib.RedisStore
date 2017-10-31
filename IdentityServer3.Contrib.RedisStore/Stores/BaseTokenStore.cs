@@ -54,22 +54,12 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
         {
             return JsonConvert.DeserializeObject<T>(json, GetJsonSerializerSettings());
         }
-
-        protected RedisStuct RedisToToken(string json)
-        {
-            return JsonConvert.DeserializeObject<RedisStuct>(json);
-        }
-
-        protected string TokenToRedis(RedisStuct token)
-        {
-            return JsonConvert.SerializeObject(token);
-        }
         #endregion
 
         public async Task<T> GetAsync(string key)
         {
             var token = await this.database.StringGetAsync(GetKey(key));
-            return token.HasValue ? ConvertFromJson(RedisToToken(token).Content) : default(T);
+            return token.HasValue ? ConvertFromJson(token) : default(T);
         }
 
         public async Task RemoveAsync(string key)
@@ -77,7 +67,7 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
             var token = await this.database.StringGetAsync(GetKey(key));
             if (!token.HasValue)
                 return;
-            var _ = ConvertFromJson(RedisToToken(token).Content);
+            var _ = ConvertFromJson(token);
             var transaction = this.database.CreateTransaction();
             transaction.KeyDeleteAsync(GetKey(key));
             transaction.SetRemoveAsync(GetSetKey(_.SubjectId), key);
@@ -93,7 +83,7 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
             var keysToDelete = tokensKeys.Zip(tokens, (key, value) => new KeyValuePair<RedisValue, RedisValue>(key, value)).Where(_ => !_.Value.HasValue).Select(_ => _.Key).ToArray();
             if (keysToDelete.Count() != 0)
                 await this.database.SetRemoveAsync(setKey, keysToDelete);
-            return tokens.Where(_ => _.HasValue).Select(_ => ConvertFromJson(RedisToToken(_).Content)).Cast<ITokenMetadata>();
+            return tokens.Where(_ => _.HasValue).Select(_ => ConvertFromJson(_)).Cast<ITokenMetadata>();
         }
 
         public async Task RevokeAsync(string subject, string client)

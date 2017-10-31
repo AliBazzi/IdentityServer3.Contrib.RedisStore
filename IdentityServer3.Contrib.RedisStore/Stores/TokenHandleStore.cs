@@ -15,12 +15,7 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
 
         public override async Task StoreAsync(string key, Token tokenHandle)
         {
-            var token = new RedisStuct
-            {
-                Content = ConvertToJson(tokenHandle),
-                Exp = DateTimeOffset.UtcNow.AddSeconds(tokenHandle.Lifetime)
-            };
-            var json = TokenToRedis(token);
+            var json = ConvertToJson(tokenHandle);
             var expiresIn = new TimeSpan(0, 0, tokenHandle.Lifetime);
             await base.StoreAsync(key, json, tokenHandle, expiresIn);
         }
