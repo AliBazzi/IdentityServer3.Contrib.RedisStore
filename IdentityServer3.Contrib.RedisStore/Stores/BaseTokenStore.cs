@@ -13,26 +13,30 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
 {
     public abstract class BaseTokenStore<T> where T : ITokenMetadata
     {
+
         private readonly TokenType tokenType;
         private readonly IScopeStore scopeStore;
         private readonly IClientStore clientStore;
         private readonly IDatabase database;
+        private readonly IRedisKeyFactory redisKeyFactory;
 
-        public BaseTokenStore(IDatabase database, TokenType tokenType, IScopeStore scopeStore, IClientStore clientStore)
+
+        public BaseTokenStore(IDatabase database, TokenType tokenType, IScopeStore scopeStore, IClientStore clientStore, IRedisKeyFactory redisKeyFactory)
         {
             this.scopeStore = scopeStore ?? throw new ArgumentNullException(nameof(scopeStore));
             this.clientStore = clientStore ?? throw new ArgumentNullException(nameof(clientStore));
             this.database = database ?? throw new ArgumentNullException(nameof(database));
             this.tokenType = tokenType;
+            this.redisKeyFactory = redisKeyFactory ?? new RedisKeyFactory();
         }
 
-        protected string GetKey(string key) => $"{(short)this.tokenType}:{key}";
+        protected string GetKey(string key) => $"{redisKeyFactory.SystemPrefix()}{(short)this.tokenType}:{key}";
 
-        private string GetSetKey(ITokenMetadata token) => $"{((short)this.tokenType).ToString()}:{token.SubjectId}:{token.ClientId}";
+        private string GetSetKey(ITokenMetadata token) => $"{redisKeyFactory.SystemPrefix()}{((short)this.tokenType)}:{token.SubjectId}:{token.ClientId}";
 
-        private string GetSetKey(string subjectId) => $"{((short)this.tokenType).ToString()}:{subjectId}";
+        private string GetSetKey(string subjectId) => $"{redisKeyFactory.SystemPrefix()}{((short)this.tokenType)}:{subjectId}";
 
-        private string GetSetKey(string subjectId, string clientId) => $"{((short)this.tokenType).ToString()}:{subjectId}:{clientId}";
+        private string GetSetKey(string subjectId, string clientId) => $"{redisKeyFactory.SystemPrefix()}{((short)this.tokenType)}:{subjectId}:{clientId}";
 
         #region Json
         JsonSerializerSettings GetJsonSerializerSettings()

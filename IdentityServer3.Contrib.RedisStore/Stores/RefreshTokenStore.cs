@@ -9,8 +9,8 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
 {
     public class RefreshTokenStore : BaseTokenStore<RefreshToken>, IRefreshTokenStore
     {
-        public RefreshTokenStore(IDatabase database, IScopeStore scopeStore, IClientStore clientStore)
-            : base(database, TokenType.RefreshToken, scopeStore, clientStore)
+        public RefreshTokenStore(IDatabase database, IScopeStore scopeStore, IClientStore clientStore, IRedisKeyFactory redisKeyFactory)
+            : base(database, TokenType.RefreshToken, scopeStore, clientStore, redisKeyFactory)
         { }
 
         public override async Task StoreAsync(string key, RefreshToken refreshToken)
