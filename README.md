@@ -31,6 +31,8 @@ factory.ConfigureOperationalRedisStoreServices("--- redis store connection strin
 
 ```
 
+**Note**: you can add prefix to the keys stored in Redis Store by setting keyPrefix parameter to a value of your own choice on any of  ConfigureOperationalRedisStoreServices overloads.
+
 ## the solution approach
 
 the solution was approached based on how the [SQL Store](https://github.com/IdentityServer/IdentityServer3.EntityFramework) storing the operational data, but the concept of Redis as a NoSQL db is totally different than relational db concepts, all the operational data stores implement the following [ITransientDataRepository](https://github.com/IdentityServer/IdentityServer3/blob/master/source%2FCore%2FServices%2FITransientDataRepository.cs) interface:
@@ -71,9 +73,9 @@ so the StoreAsync operation stores the following entries in Redis:
 
 1. Key(TokenType:Key) -> RedisStruct: stored as key string value pairs, used to retrieve the Token based on the key, if the token exists or not expired.
 
-1. Key(TokenType:SubjectId) -> Key* : stored in a redis Set, used on the GetAllAsync, to retrieve all the tokens related to a given subject id.
+2. Key(TokenType:SubjectId) -> Key* : stored in a redis Set, used on the GetAllAsync, to retrieve all the tokens related to a given subject id.
 
-1. Key(TokenType:SubjectId:ClientId) -> Key* : stored in a redis set, used to retrieve all the keys that are related to a subject and client ids, to revoke them while calling RevokeAsync.
+3. Key(TokenType:SubjectId:ClientId) -> Key* : stored in a redis set, used to retrieve all the keys that are related to a subject and client ids, to revoke them while calling RevokeAsync.
 
 for more information on data structures used to store the token please refer to [Redis data types documentation](https://redis.io/topics/data-types)
 
@@ -98,9 +100,9 @@ since Redis has a [key Expiration](https://redis.io/commands/expire) feature bas
 
 1. for Key(TokenType:Key) the expiration is straight forward, it's set on the StringSet Redis operation as defined by identity server on the token object.
 
-1. for Key(TokenType:SubjectId:ClientId) set the expiration also set as the lifetime of the token passed by the identity server, since the [Client](https://identityserver.github.io/Documentation/docsv2/configuration/clients.html) has unified lifetime for the token defined in the configuration.
+2. for Key(TokenType:SubjectId:ClientId) set the expiration also set as the lifetime of the token passed by the identity server, since the [Client](https://identityserver.github.io/Documentation/docsv2/configuration/clients.html) has unified lifetime for the token defined in the configuration.
 
-1. for Key(TokenType:SubjectId) Set, there is no expiration since the subject id is involved, so on GetAllAsync and RevokeAsync the Store is clearing the expired keys.
+3. for Key(TokenType:SubjectId) Set, there is no expiration since the subject id is involved, so on GetAllAsync and RevokeAsync the Store is clearing the expired keys.
 
 ## Feedback
 
