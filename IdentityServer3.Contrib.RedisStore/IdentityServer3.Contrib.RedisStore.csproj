@@ -59,6 +59,7 @@
     <Compile Include="Serialization\ScopeConverter.cs" />
     <Compile Include="Stores\AuthorizationCodeStore.cs" />
     <Compile Include="Stores\BaseTokenStore.cs" />
+    <Compile Include="Stores\RedisKeyGenerator.cs" />
     <Compile Include="Stores\RefreshTokenStore.cs" />
     <Compile Include="Stores\TokenHandleStore.cs" />
   </ItemGroup>

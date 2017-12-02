@@ -9,8 +9,8 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
 {
     public class AuthorizationCodeStore : BaseTokenStore<AuthorizationCode>, IAuthorizationCodeStore
     {
-        public AuthorizationCodeStore(IDatabase database, IScopeStore scopeStore, IClientStore clientStore)
-            : base(database, TokenType.AuthorizationCode, scopeStore, clientStore)
+        public AuthorizationCodeStore(IDatabase database, IScopeStore scopeStore, IClientStore clientStore, RedisKeyGenerator redisKeyGenerator)
+            : base(database, TokenType.AuthorizationCode, scopeStore, clientStore, redisKeyGenerator)
         { }
 
         public override async Task StoreAsync(string key, AuthorizationCode code)

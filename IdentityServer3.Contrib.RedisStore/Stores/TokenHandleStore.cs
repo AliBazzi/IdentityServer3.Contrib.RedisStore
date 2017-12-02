@@ -9,8 +9,8 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
 {
     public class TokenHandleStore : BaseTokenStore<Token>, ITokenHandleStore
     {
-        public TokenHandleStore(IDatabase database, IScopeStore scopeStore, IClientStore clientStore)
-            : base(database, TokenType.TokenHandle, scopeStore, clientStore)
+        public TokenHandleStore(IDatabase database, IScopeStore scopeStore, IClientStore clientStore, RedisKeyGenerator redisKeyGenerator)
+            : base(database, TokenType.TokenHandle, scopeStore, clientStore, redisKeyGenerator)
         { }
 
         public override async Task StoreAsync(string key, Token tokenHandle)

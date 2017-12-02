@@ -17,22 +17,16 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
         private readonly IScopeStore scopeStore;
         private readonly IClientStore clientStore;
         private readonly IDatabase database;
+        private readonly RedisKeyGenerator keyGenerator;
 
-        public BaseTokenStore(IDatabase database, TokenType tokenType, IScopeStore scopeStore, IClientStore clientStore)
+        public BaseTokenStore(IDatabase database, TokenType tokenType, IScopeStore scopeStore, IClientStore clientStore, RedisKeyGenerator redisKeyGenerator)
         {
             this.scopeStore = scopeStore ?? throw new ArgumentNullException(nameof(scopeStore));
             this.clientStore = clientStore ?? throw new ArgumentNullException(nameof(clientStore));
             this.database = database ?? throw new ArgumentNullException(nameof(database));
             this.tokenType = tokenType;
+            this.keyGenerator = redisKeyGenerator;
         }
-
-        protected string GetKey(string key) => $"{(short)this.tokenType}:{key}";
-
-        private string GetSetKey(ITokenMetadata token) => $"{((short)this.tokenType).ToString()}:{token.SubjectId}:{token.ClientId}";
-
-        private string GetSetKey(string subjectId) => $"{((short)this.tokenType).ToString()}:{subjectId}";
-
-        private string GetSetKey(string subjectId, string clientId) => $"{((short)this.tokenType).ToString()}:{subjectId}:{clientId}";
 
         #region Json
         JsonSerializerSettings GetJsonSerializerSettings()
@@ -58,26 +52,26 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
 
         public async Task<T> GetAsync(string key)
         {
-            var token = await this.database.StringGetAsync(GetKey(key));
+            var token = await this.database.StringGetAsync(keyGenerator.GetKey(tokenType, key));
             return token.HasValue ? ConvertFromJson(token) : default(T);
         }
 
         public async Task RemoveAsync(string key)
         {
-            var token = await this.database.StringGetAsync(GetKey(key));
+            var token = await this.database.StringGetAsync(keyGenerator.GetKey(tokenType, key));
             if (!token.HasValue)
                 return;
             var _ = ConvertFromJson(token);
             var transaction = this.database.CreateTransaction();
-            transaction.KeyDeleteAsync(GetKey(key));
-            transaction.SetRemoveAsync(GetSetKey(_.SubjectId), key);
-            transaction.SetRemoveAsync(GetSetKey(_.SubjectId, _.ClientId), key);
+            transaction.KeyDeleteAsync(keyGenerator.GetKey(tokenType, key));
+            transaction.SetRemoveAsync(keyGenerator.GetSetKey(tokenType, _.SubjectId), key);
+            transaction.SetRemoveAsync(keyGenerator.GetSetKey(tokenType, _.SubjectId, _.ClientId), key);
             await transaction.ExecuteAsync();
         }
 
         public async Task<IEnumerable<ITokenMetadata>> GetAllAsync(string subject)
         {
-            var setKey = GetSetKey(subject);
+            var setKey = keyGenerator.GetSetKey(tokenType, subject);
             var tokensKeys = await this.database.SetMembersAsync(setKey);
             var tokens = await this.database.StringGetAsync(tokensKeys.Select(_ => (RedisKey)_.ToString()).ToArray());
             var keysToDelete = tokensKeys.Zip(tokens, (key, value) => new KeyValuePair<RedisValue, RedisValue>(key, value)).Where(_ => !_.Value.HasValue).Select(_ => _.Key).ToArray();
@@ -88,13 +82,13 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
 
         public async Task RevokeAsync(string subject, string client)
         {
-            var setKey = GetSetKey(subject, client);
+            var setKey = keyGenerator.GetSetKey(tokenType, subject, client);
             var keys = await this.database.SetMembersAsync(setKey);
             if (keys.Count() == 0)
                 return;
             var transaction = this.database.CreateTransaction();
             transaction.KeyDeleteAsync(keys.Select(_ => (RedisKey)_.ToString()).Concat(new RedisKey[] { setKey }).ToArray());
-            transaction.SetRemoveAsync(GetSetKey(subject), keys.ToArray());
+            transaction.SetRemoveAsync(keyGenerator.GetSetKey(tokenType, subject), keys.ToArray());
             await transaction.ExecuteAsync();
         }
 
@@ -104,17 +98,17 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
         {
             if (!string.IsNullOrEmpty(token.SubjectId))
             {
-                var setKey = GetSetKey(token);
+                var setKey = keyGenerator.GetSetKey(tokenType, token);
                 var transaction = this.database.CreateTransaction();
-                transaction.StringSetAsync(GetKey(key), json, expiresIn);
+                transaction.StringSetAsync(keyGenerator.GetKey(tokenType, key), json, expiresIn);
                 transaction.SetAddAsync(setKey, key);
-                transaction.SetAddAsync(GetSetKey(token.SubjectId), key);
+                transaction.SetAddAsync(keyGenerator.GetSetKey(tokenType, token.SubjectId), key);
                 transaction.KeyExpireAsync(setKey, expiresIn);
                 await transaction.ExecuteAsync();
             }
             else
             {
-                await this.database.StringSetAsync(GetKey(key), json, expiresIn);
+                await this.database.StringSetAsync(keyGenerator.GetKey(tokenType, key), json, expiresIn);
             }
         }
     }
