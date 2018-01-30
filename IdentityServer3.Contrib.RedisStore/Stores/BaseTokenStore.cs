@@ -96,19 +96,20 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
 
         protected async Task StoreAsync(string key, string json, ITokenMetadata token, TimeSpan expiresIn)
         {
+            var tokenKey = keyGenerator.GetKey(tokenType, key);
             if (!string.IsNullOrEmpty(token.SubjectId))
             {
                 var setKey = keyGenerator.GetSetKey(tokenType, token);
                 var transaction = this.database.CreateTransaction();
-                transaction.StringSetAsync(keyGenerator.GetKey(tokenType, key), json, expiresIn);
-                transaction.SetAddAsync(setKey, key);
-                transaction.SetAddAsync(keyGenerator.GetSetKey(tokenType, token.SubjectId), key);
+                transaction.StringSetAsync(tokenKey, json, expiresIn);
+                transaction.SetAddAsync(setKey, tokenKey);
+                transaction.SetAddAsync(keyGenerator.GetSetKey(tokenType, token.SubjectId), tokenKey);
                 transaction.KeyExpireAsync(setKey, expiresIn);
                 await transaction.ExecuteAsync();
             }
             else
             {
-                await this.database.StringSetAsync(keyGenerator.GetKey(tokenType, key), json, expiresIn);
+                await this.database.StringSetAsync(tokenKey, json, expiresIn);
             }
         }
     }
