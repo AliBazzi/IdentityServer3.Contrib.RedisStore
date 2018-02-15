@@ -17,7 +17,7 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
         {
             var json = ConvertToJson(refreshToken);
             var expiresIn = refreshToken.CreationTime.UtcDateTime.AddSeconds(refreshToken.LifeTime) - DateTimeOffset.UtcNow;
-            await base.StoreAsync(key, json, refreshToken, expiresIn);
+            await base.StoreAsync(key, json, refreshToken, expiresIn).ConfigureAwait(false);
         }
     }
 }
