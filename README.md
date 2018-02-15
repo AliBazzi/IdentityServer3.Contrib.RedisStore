@@ -71,7 +71,7 @@ this brings trouble to Redis store since redis as a reliable dictionary is not d
 
 so the StoreAsync operation stores the following entries in Redis:
 
-1. Key(TokenType:Key) -> RedisStruct: stored as key string value pairs, used to retrieve the Token based on the key, if the token exists or not expired.
+1. Key(TokenType:Key) -> Token: stored as key string value pairs, used to retrieve the Token based on the key, if the token exists or not expired.
 
 2. Key(TokenType:SubjectId) -> Key* : stored in a redis Set, used on the GetAllAsync, to retrieve all the tokens related to a given subject id.
 
@@ -79,24 +79,7 @@ so the StoreAsync operation stores the following entries in Redis:
 
 for more information on data structures used to store the token please refer to [Redis data types documentation](https://redis.io/topics/data-types)
 
-now it's time to look at the RedisStruct which is used as mediator data type to be stored in redis instead of storing the json of the token directly:
-
-```csharp
-public class RedisStuct
-    {
-        /// <summary>
-        /// the JSON content of the original token
-        /// </summary>
-        public string Content { get; set; }
-
-        /// <summary>
-        /// the expiration date of the token
-        /// </summary>
-        public DateTimeOffset Exp { get; set; }
-    }
-```
-
-since Redis has a [key Expiration](https://redis.io/commands/expire) feature based on a defined date time or time span, and to not implement a logic similar to SQL store implementation for [cleaning up the store](https://identityserver.github.io/Documentation/docsv2/ef/operational.html) periodically from dangling tokens, the store uses the key expiration of redis while storing based on the following criteria:
+since Redis has a [key Expiration](https://redis.io/commands/expire) feature based on a defined date time or time span, and to not implement a logic similar to SQL store implementation for [cleaning up the store](https://identityserver.github.io/Documentation/docsv2/ef/operational.html) periodically from dangling tokens, the store uses the key expiration of Redis while storing based on the following criteria:
 
 1. for Key(TokenType:Key) the expiration is straight forward, it's set on the StringSet Redis operation as defined by identity server on the token object.
 
