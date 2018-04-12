@@ -130,6 +130,14 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
             {
                 await this.database.StringSetAsync(tokenKey, json, expiresIn).ConfigureAwait(false);
             }
+            
+            //allways cleanup any previous expired keys
+            var updateKey = keyGenerator.GetSetKey(tokenType, token.SubjectId);
+            var tokensKeys = await this.database.SetMembersAsync(updateKey).ConfigureAwait(false);
+            var tokens = await this.database.StringGetAsync(tokensKeys.Select(_ => (RedisKey)_.ToString()).ToArray()).ConfigureAwait(false);
+            var keysToDelete = tokensKeys.Zip(tokens, (deleteKey, value) => new KeyValuePair<RedisValue, RedisValue>(deleteKey, value)).Where(_ => !_.Value.HasValue).Select(_ => _.Key).ToArray();
+            if (keysToDelete.Count() != 0)
+                this.database.SetRemoveAsync(updateKey, keysToDelete).ConfigureAwait(false);
         }
     }
 }
