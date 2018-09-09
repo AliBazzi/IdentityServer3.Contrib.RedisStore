@@ -110,20 +110,15 @@ namespace IdentityServer3.Contrib.RedisStore.Stores
                 var setKey = keyGenerator.GetSetKey(tokenType, token);
                 var setKeyforSubject = keyGenerator.GetSetKey(tokenType, token.SubjectId);
 
-                //get keys to clean, if any
-                var (_, keysToDelete) = await GetTokens(setKeyforSubject).ConfigureAwait(false);
+                var ttlOfSet = await this.database.KeyTimeToLiveAsync(setKeyforSubject).ConfigureAwait(false);
 
                 var transaction = this.database.CreateTransaction();
                 transaction.StringSetAsync(tokenKey, json, expiresIn);
                 transaction.SetAddAsync(setKey, tokenKey);
                 transaction.SetAddAsync(setKeyforSubject, tokenKey);
                 transaction.KeyExpireAsync(setKey, expiresIn);
-
-                if (keysToDelete.Any())//cleanup set while persisting new token
-                {
-                    transaction.SetRemoveAsync(setKey, keysToDelete.ToArray());
-                    transaction.SetRemoveAsync(setKeyforSubject, keysToDelete.ToArray());
-                }
+                if ((ttlOfSet ?? TimeSpan.Zero) <= expiresIn)
+                    transaction.KeyExpireAsync(setKeyforSubject, expiresIn);
                 await transaction.ExecuteAsync().ConfigureAwait(false);
             }
             else
